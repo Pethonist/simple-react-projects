@@ -1,73 +1,65 @@
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import React, { useState, useEffect } from 'react';
-import { Success } from './components/Success';
-import { Users } from './components/Users';
-
-// Here is the list of users: https://reqres.in/api/users
+import { Block } from './Block';
+import './index.scss';
 
 function App() {
-  const [users, setUsers] = useState([]);
-  const [invites, setInvites] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [success, setSuccess] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
+  const [fromCurrency, setFromCurrency] = useState('UAH');
+  const [toCurrency, setToCurrency] = useState('USD');
+  const [fromPrice, setFromPrice] = useState(0);
+  const [toPrice, setToPrice] = useState(1);
+
+  const ratesRef = useRef({});
 
   useEffect(() => {
-    /*==========REALISATION WITH FETCH==========*/
-    /* fetch('https://reqres.in/api/users')
-      .then((response) => response.json())
-      .then((json) => {
-        setUsers(json.data);
-      })
-      .catch((error) => {
-        console.warn(error);
-        alert('Ошибка при получении пользователей');
-      })
-      .finally(() => setIsLoading(false));*/
-
-    /*==========REALISATION WITH AXIOS==========*/
     axios
-      .get('https://reqres.in/api/users')
+      .get('https://cdn.cur.su/api/latest.json')
       .then((response) => response.data)
-      .then((data) => setUsers(data.data))
+      .then((data) => {
+        ratesRef.current = data.rates;
+        onChangeToPrice(1);
+      })
       .catch((error) => {
         console.warn(error);
-        alert('Error getting users');
-      })
-      .finally(() => setIsLoading(false));
+        alert("Can't get current rates");
+      });
   }, []);
 
-  const onChangeSearchValue = (event) => {
-    setSearchValue(event.target.value);
+  const onChangeFromPrice = (value) => {
+    const price = value / ratesRef.current[fromCurrency];
+    const result = price * ratesRef.current[toCurrency];
+    setToPrice(result.toFixed(4));
+    setFromPrice(value);
   };
 
-  const onClickInvite = (id) => {
-    if (invites.includes(id)) {
-      setInvites((prev) => prev.filter((_id) => _id !== id));
-    } else {
-      setInvites((prev) => [...prev, id]);
-    }
+  const onChangeToPrice = (value) => {
+    const result = (ratesRef.current[fromCurrency] / ratesRef.current[toCurrency]) * value;
+    setFromPrice(result.toFixed(4));
+    setToPrice(value);
   };
 
-  const onClickSendInvites = () => {
-    setSuccess(true);
-  };
+  useEffect(() => {
+    onChangeFromPrice(fromPrice);
+  }, [fromCurrency]);
+
+  useEffect(() => {
+    onChangeToPrice(toPrice);
+  }, [toCurrency]);
 
   return (
     <div className="App">
-      {success ? (
-        <Success count={invites.length} />
-      ) : (
-        <Users
-          items={users}
-          isLoading={isLoading}
-          searchValue={searchValue}
-          onChangeSearchValue={onChangeSearchValue}
-          invites={invites}
-          onClickInvite={onClickInvite}
-          onClickSendInvites={onClickSendInvites}
-        />
-      )}
+      <Block
+        value={fromPrice}
+        currency={fromCurrency}
+        onChangeCurrency={setFromCurrency}
+        onChangeValue={onChangeFromPrice}
+      />
+      <Block
+        value={toPrice}
+        currency={toCurrency}
+        onChangeCurrency={setToCurrency}
+        onChangeValue={onChangeToPrice}
+      />
     </div>
   );
 }
